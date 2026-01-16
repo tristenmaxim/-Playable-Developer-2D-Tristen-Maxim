@@ -30,3 +30,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Cursor/Specstory
+.specstory/
+.cursorindexingignore
