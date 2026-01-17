@@ -20,13 +20,20 @@ class Enemy extends PIXI.Sprite {
     /**
      * Создание дефолтной текстуры (красный прямоугольник)
      * Статический метод, чтобы можно было вызвать до super()
+     * В PixiJS v7 используем Canvas API напрямую
      */
     static createDefaultTexture() {
-        const graphics = new PIXI.Graphics();
-        graphics.beginFill(0xff0000);
-        graphics.drawRect(0, 0, 40, 60);
-        graphics.endFill();
-        return graphics.generateCanvasTexture();
+        const canvas = document.createElement('canvas');
+        canvas.width = 40;
+        canvas.height = 60;
+        const ctx = canvas.getContext('2d');
+        
+        // Рисуем красный прямоугольник
+        ctx.fillStyle = '#ff0000';
+        ctx.fillRect(0, 0, 40, 60);
+        
+        // Создаем текстуру из canvas
+        return PIXI.Texture.from(canvas);
     }
     
     /**

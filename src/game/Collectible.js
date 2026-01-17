@@ -25,13 +25,23 @@ class Collectible extends PIXI.Sprite {
     /**
      * Создание дефолтной текстуры (желтый круг)
      * Статический метод, чтобы можно было вызвать до super()
+     * В PixiJS v7 используем Canvas API напрямую
      */
     static createDefaultTexture() {
-        const graphics = new PIXI.Graphics();
-        graphics.beginFill(0xffd700);
-        graphics.drawCircle(0, 0, 20);
-        graphics.endFill();
-        return graphics.generateCanvasTexture();
+        const canvas = document.createElement('canvas');
+        const size = 40; // Диаметр круга
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        
+        // Рисуем желтый круг
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Создаем текстуру из canvas
+        return PIXI.Texture.from(canvas);
     }
     
     /**
