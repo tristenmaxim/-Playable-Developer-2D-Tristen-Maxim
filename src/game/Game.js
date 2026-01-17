@@ -150,9 +150,43 @@ class Game {
      * Загрузка ассетов
      */
     async loadAssets() {
-        // Загружаем ассеты (пока используем дефолтные спрайты)
-        // Позже добавим реальные текстуры из assets/
+        console.log('[Этап 2] Начало загрузки ассетов...');
+        
+        // Загружаем фоновые текстуры (Этап 2)
+        this.assetLoader
+            .add('background1', 'assets/images/background-layer1.webp')
+            .add('background2', 'assets/images/background-layer2.webp')
+            .add('background3', 'assets/images/background-layer3.webp');
+        
+        console.log('[Этап 2] Добавлены фоновые текстуры для загрузки');
+        
+        // Загружаем все ассеты
         await this.assetLoader.load();
+        
+        // Проверяем, что текстуры загружены
+        const bg1 = this.assetLoader.getTexture('background1');
+        const bg2 = this.assetLoader.getTexture('background2');
+        const bg3 = this.assetLoader.getTexture('background3');
+        
+        if (bg1) {
+            console.log('[Этап 2] ✅ background1 загружен:', bg1.width, 'x', bg1.height);
+        } else {
+            console.warn('[Этап 2] ⚠️ background1 не загружен');
+        }
+        
+        if (bg2) {
+            console.log('[Этап 2] ✅ background2 загружен:', bg2.width, 'x', bg2.height);
+        } else {
+            console.warn('[Этап 2] ⚠️ background2 не загружен');
+        }
+        
+        if (bg3) {
+            console.log('[Этап 2] ✅ background3 загружен:', bg3.width, 'x', bg3.height);
+        } else {
+            console.warn('[Этап 2] ⚠️ background3 не загружен');
+        }
+        
+        console.log('[Этап 2] Загрузка ассетов завершена');
     }
     
     /**
