@@ -2297,22 +2297,29 @@ const EMBEDDED_ASSETS = {
 (function() {
     console.log('[AssetLoader Patch] Начало применения патча...');
     
-    if (typeof EMBEDDED_ASSETS === 'undefined') {
-        console.error('[AssetLoader Patch] EMBEDDED_ASSETS не найдены!');
-        return;
-    }
-    
-    if (typeof AssetLoader === 'undefined') {
-        console.error('[AssetLoader Patch] AssetLoader класс не найден!');
-        return;
-    }
-    
-    if (typeof PIXI === 'undefined') {
-        console.error('[AssetLoader Patch] PIXI не найден!');
-        return;
-    }
-    
-    console.log('[AssetLoader Patch] Все проверки пройдены, применяю патч...');
+    // Ждем загрузки PIXI, если он еще не загружен (для CDN)
+    function applyPatch() {
+        if (typeof EMBEDDED_ASSETS === 'undefined') {
+            console.error('[AssetLoader Patch] EMBEDDED_ASSETS не найдены!');
+            return false;
+        }
+        
+        if (typeof AssetLoader === 'undefined') {
+            console.error('[AssetLoader Patch] AssetLoader класс не найден!');
+            return false;
+        }
+        
+        if (typeof PIXI === 'undefined') {
+            console.error('[AssetLoader Patch] PIXI не найден!');
+            return false;
+        }
+        
+        if (typeof PIXI.Texture === 'undefined') {
+            console.error('[AssetLoader Patch] PIXI.Texture не найден!');
+            return false;
+        }
+        
+        console.log('[AssetLoader Patch] Все проверки пройдены, применяю патч...');
     
     // Переопределяем метод load
     AssetLoader.prototype.load = async function() {
@@ -2430,6 +2437,26 @@ const EMBEDDED_ASSETS = {
     };
     
     console.log('[AssetLoader Patch] Патч успешно применен!');
+    return true;
+    }
+    
+    // Пробуем применить патч сразу
+    if (!applyPatch()) {
+        // Если не получилось, ждем загрузки PIXI (для CDN)
+        console.log('[AssetLoader Patch] Ожидание загрузки PIXI...');
+        let attempts = 0;
+        const checkPIXI = setInterval(() => {
+            attempts++;
+            if (typeof PIXI !== 'undefined' && typeof PIXI.Texture !== 'undefined') {
+                clearInterval(checkPIXI);
+                console.log('[AssetLoader Patch] PIXI загружен, применяю патч...');
+                applyPatch();
+            } else if (attempts > 50) {
+                clearInterval(checkPIXI);
+                console.error('[AssetLoader Patch] Таймаут ожидания PIXI (5 секунд)!');
+            }
+        }, 100);
+    }
 })();
 
 </script>
