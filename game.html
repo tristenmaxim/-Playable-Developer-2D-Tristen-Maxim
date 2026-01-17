@@ -4657,12 +4657,13 @@ const EMBEDDED_ASSETS = {
                 try {
                     // Используем PIXI.Texture.from() - он должен работать с data URI
                     const texture = PIXI.Texture.from(dataURI);
-                    this.loadedAssets[alias] = texture;
+                    // Сохраняем как объект с полем texture для совместимости с getTexture()
+                    this.loadedAssets[alias] = { texture: texture };
                     console.log(`✓ Загружена текстура: ${alias}`);
                 } catch (error) {
                     console.error(`✗ Ошибка загрузки текстуры ${alias}:`, error);
                     // Создаем пустую текстуру как fallback
-                    this.loadedAssets[alias] = PIXI.Texture.EMPTY;
+                    this.loadedAssets[alias] = { texture: PIXI.Texture.EMPTY };
                 }
             } else if (mimeType.startsWith('audio/')) {
                 // Для аудио создаем Audio объект
