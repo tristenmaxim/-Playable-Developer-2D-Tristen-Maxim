@@ -14,6 +14,7 @@ class Game {
         this.enemies = [];
         this.collectibles = [];
         this.collisionSystem = null;
+        this.particleSystem = null;
         
         // Контейнеры для организации объектов
         this.gameContainer = null;
@@ -86,6 +87,10 @@ class Game {
         
         // Создаем систему коллизий
         this.collisionSystem = new CollisionSystem();
+        
+        // Создаем систему частиц
+        this.particleSystem = new ParticleSystem();
+        this.gameplayContainer.addChild(this.particleSystem);
         
         // Создаем игровые объекты
         this.createGameObjects();
@@ -177,6 +182,11 @@ class Game {
             }
         });
         
+        // Обновляем систему частиц
+        if (this.particleSystem) {
+            this.particleSystem.update(delta);
+        }
+        
         // Генерация препятствий
         this.spawnObstacles(delta);
         
@@ -265,6 +275,12 @@ class Game {
     handleEnemyCollision(enemy) {
         if (!enemy.isActive) return;
         
+        // Эффект тряски экрана
+        this.shakeScreen();
+        
+        // Эффект вспышки
+        this.flashEffect();
+        
         // Уменьшаем здоровье
         this.health--;
         
@@ -287,6 +303,11 @@ class Game {
         
         // Собираем предмет
         if (collectible.collect()) {
+            // Эффект частиц при сборе
+            if (this.particleSystem) {
+                this.particleSystem.burst(collectible.x, collectible.y, 15, 0xFFD700);
+            }
+            
             // Увеличиваем счет
             this.score += CONFIG.GAME.COLLECTIBLE_SCORE;
             
@@ -300,6 +321,63 @@ class Game {
             
             console.log(`Предмет собран! Счет: ${this.score}`);
         }
+    }
+    
+    /**
+     * Эффект тряски экрана
+     */
+    shakeScreen() {
+        if (!this.gameContainer) return;
+        
+        const originalX = this.gameContainer.x;
+        const originalY = this.gameContainer.y;
+        const intensity = 10;
+        const duration = 200;
+        const startTime = Date.now();
+        
+        const shake = () => {
+            const elapsed = Date.now() - startTime;
+            if (elapsed < duration) {
+                const offsetX = (Math.random() - 0.5) * intensity * (1 - elapsed / duration);
+                const offsetY = (Math.random() - 0.5) * intensity * (1 - elapsed / duration);
+                this.gameContainer.x = originalX + offsetX;
+                this.gameContainer.y = originalY + offsetY;
+                requestAnimationFrame(shake);
+            } else {
+                this.gameContainer.x = originalX;
+                this.gameContainer.y = originalY;
+            }
+        };
+        shake();
+    }
+    
+    /**
+     * Эффект вспышки
+     */
+    flashEffect() {
+        if (!this.app) return;
+        
+        // Создаем временный overlay для вспышки
+        const flash = new PIXI.Graphics();
+        flash.beginFill(0xFFFFFF, 0.5);
+        flash.drawRect(0, 0, CONFIG.SCREEN.WIDTH, CONFIG.SCREEN.HEIGHT);
+        flash.endFill();
+        flash.alpha = 0;
+        this.uiContainer.addChild(flash);
+        
+        // Анимация вспышки
+        const fadeOut = () => {
+            if (flash.alpha > 0) {
+                flash.alpha -= 0.2;
+                requestAnimationFrame(fadeOut);
+            } else {
+                this.uiContainer.removeChild(flash);
+                flash.destroy();
+            }
+        };
+        
+        flash.alpha = 0.5;
+        fadeOut();
     }
     
     /**
