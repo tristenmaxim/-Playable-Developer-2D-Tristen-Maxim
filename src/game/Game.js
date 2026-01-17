@@ -15,6 +15,7 @@ class Game {
         this.collectibles = [];
         this.collisionSystem = null;
         this.particleSystem = null;
+        this.audioManager = null;
         
         // Контейнеры для организации объектов
         this.gameContainer = null;
@@ -82,8 +83,14 @@ class Game {
         // Инициализируем загрузчик ассетов
         this.assetLoader = new AssetLoader();
         
+        // Инициализируем аудио менеджер
+        this.audioManager = new AudioManager();
+        
         // Загружаем ассеты
         await this.loadAssets();
+        
+        // Загружаем звуки
+        await this.loadSounds();
         
         // Создаем систему коллизий
         this.collisionSystem = new CollisionSystem();
@@ -104,6 +111,11 @@ class Game {
         // Запускаем игру
         this.start();
         
+        // Запускаем музыку
+        if (this.audioManager) {
+            this.audioManager.playMusic();
+        }
+        
         console.log('Игра инициализирована');
     }
     
@@ -114,6 +126,39 @@ class Game {
         // Загружаем ассеты (пока используем дефолтные спрайты)
         // Позже добавим реальные текстуры из assets/
         await this.assetLoader.load();
+    }
+    
+    /**
+     * Загрузка звуков
+     */
+    async loadSounds() {
+        if (!this.audioManager) return;
+        
+        try {
+            // Загружаем звуки (если файлы существуют)
+            const soundFiles = [
+                { name: 'jump', url: 'assets/audio/jump.mp3' },
+                { name: 'collect', url: 'assets/audio/collect.mp3' },
+                { name: 'collision', url: 'assets/audio/collision.mp3' }
+            ];
+            
+            for (const sound of soundFiles) {
+                try {
+                    await this.audioManager.loadSound(sound.name, sound.url);
+                } catch (e) {
+                    console.warn(`Не удалось загрузить звук ${sound.name}:`, e);
+                }
+            }
+            
+            // Загружаем музыку
+            try {
+                await this.audioManager.loadMusic('assets/audio/music.mp3');
+            } catch (e) {
+                console.warn('Не удалось загрузить музыку:', e);
+            }
+        } catch (e) {
+            console.warn('Ошибка загрузки звуков:', e);
+        }
     }
     
     /**
@@ -281,6 +326,11 @@ class Game {
         // Эффект вспышки
         this.flashEffect();
         
+        // Воспроизводим звук столкновения
+        if (this.audioManager) {
+            this.audioManager.playSound('collision', 0.8);
+        }
+        
         // Уменьшаем здоровье
         this.health--;
         
@@ -306,6 +356,11 @@ class Game {
             // Эффект частиц при сборе
             if (this.particleSystem) {
                 this.particleSystem.burst(collectible.x, collectible.y, 15, 0xFFD700);
+            }
+            
+            // Воспроизводим звук сбора
+            if (this.audioManager) {
+                this.audioManager.playSound('collect', 0.7);
             }
             
             // Увеличиваем счет
@@ -453,6 +508,11 @@ class Game {
     handleJump() {
         if (!this.isRunning || !this.player) return;
         this.player.jump();
+        
+        // Воспроизводим звук прыжка
+        if (this.audioManager) {
+            this.audioManager.playSound('jump', 0.5);
+        }
     }
     
     /**
@@ -527,6 +587,12 @@ class Game {
             this.endScreen.hide();
         }
         
+        // Перезапускаем музыку
+        if (this.audioManager) {
+            this.audioManager.stopMusic();
+            this.audioManager.playMusic();
+        }
+        
         console.log('Игра запущена');
     }
     
@@ -535,6 +601,9 @@ class Game {
      */
     pause() {
         this.isRunning = false;
+        if (this.audioManager) {
+            this.audioManager.pauseMusic();
+        }
     }
     
     /**
@@ -542,6 +611,9 @@ class Game {
      */
     resume() {
         this.isRunning = true;
+        if (this.audioManager) {
+            this.audioManager.resumeMusic();
+        }
     }
     
     /**
