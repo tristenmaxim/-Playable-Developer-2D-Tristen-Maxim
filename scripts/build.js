@@ -225,14 +225,17 @@ function createAssetsMap() {
 /**
  * Инжекция ассетов в JavaScript код
  */
-function injectAssets(jsCode, assetsMap) {
+function injectAssets(assetsMap) {
     // Создаем объект с data URI ассетами
     let assetsCode = '\n// === Встроенные ассеты ===\n';
+    assetsCode += '(function() {\n';
     assetsCode += 'const EMBEDDED_ASSETS = {\n';
     
     Object.keys(assetsMap).forEach((key, index, array) => {
         const isLast = index === array.length - 1;
-        assetsCode += `  "${key}": "${assetsMap[key]}"${isLast ? '' : ','}\n`;
+        // Экранируем кавычки в data URI
+        const escapedDataURI = assetsMap[key].replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        assetsCode += `  "${key}": "${escapedDataURI}"${isLast ? '' : ','}\n`;
     });
     
     assetsCode += '};\n\n';
@@ -335,9 +338,10 @@ function injectAssets(jsCode, assetsMap) {
         return this.loadedAssets;
     };
 })();
+})(); // Закрываем IIFE для EMBEDDED_ASSETS
 `;
     
-    return assetsCode + assetLoaderPatch + jsCode;
+    return assetsCode + assetLoaderPatch;
 }
 
 /**
@@ -360,10 +364,12 @@ async function buildHTML() {
     // Создаем карту ассетов
     const assetsMap = createAssetsMap();
     
-    // Инжектируем ассеты в JavaScript
+    // Инжектируем ассеты в JavaScript (ПОСЛЕ всего кода, чтобы патч выполнялся после определения AssetLoader)
     if (Object.keys(assetsMap).length > 0) {
         console.log('\nВстраиваю ассеты в код...');
-        bundledJS = injectAssets(bundledJS, assetsMap);
+        const assetsCode = injectAssets(assetsMap); // Получаем патч
+        // Добавляем патч в конец bundledJS (после определения AssetLoader)
+        bundledJS = bundledJS + '\n' + assetsCode;
     }
     
     // Создаем финальный HTML
