@@ -45,8 +45,9 @@ class Enemy extends PIXI.Sprite {
         // Движение слева направо
         this.x -= this.speed * (delta / 16);
         
-        // Удаление при выходе за экран
-        if (this.x + this.width < 0) {
+        // Удаление при выходе за экран (используем getBounds() для получения размера)
+        const bounds = this.getBounds();
+        if (this.x + bounds.width < 0) {
             this.isActive = false;
         }
     }

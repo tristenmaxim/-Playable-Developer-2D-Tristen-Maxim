@@ -20,9 +20,9 @@ class Player extends PIXI.Container {
         this.x = CONFIG.PLAYER.INITIAL_X;
         this.y = CONFIG.PLAYER.INITIAL_Y;
         
-        // Размеры для коллизий
-        this.width = 50;
-        this.height = 80;
+        // Размеры для коллизий (используем приватные свойства, чтобы избежать конфликта с PixiJS)
+        this._collisionWidth = 50;
+        this._collisionHeight = 80;
     }
     
     /**
@@ -36,9 +36,9 @@ class Player extends PIXI.Container {
             this.sprite.anchor.set(0.5, 1); // Якорь снизу по центру
             this.addChild(this.sprite);
             
-            // Обновляем размеры
-            this.width = this.sprite.width;
-            this.height = this.sprite.height;
+            // Обновляем размеры для коллизий
+            this._collisionWidth = this.sprite.width;
+            this._collisionHeight = this.sprite.height;
         }
     }
     
@@ -88,10 +88,10 @@ class Player extends PIXI.Container {
      */
     getBounds() {
         return {
-            x: this.x - this.width / 2,
-            y: this.y - this.height,
-            width: this.width,
-            height: this.height
+            x: this.x - this._collisionWidth / 2,
+            y: this.y - this._collisionHeight,
+            width: this._collisionWidth,
+            height: this._collisionHeight
         };
     }
     

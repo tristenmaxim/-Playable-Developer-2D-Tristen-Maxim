@@ -60,8 +60,9 @@ class Collectible extends PIXI.Sprite {
         const scale = 1 + Math.sin(this.rotation * 2) * 0.1;
         this.scale.set(scale);
         
-        // Удаление при выходе за экран
-        if (this.x + this.width < 0) {
+        // Удаление при выходе за экран (используем getBounds() для получения размера)
+        const bounds = this.getBounds();
+        if (this.x + bounds.width < 0) {
             this.isActive = false;
         }
     }
