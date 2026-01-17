@@ -56,11 +56,13 @@ class Enemy extends PIXI.Sprite {
      * Получить границы для коллизий
      */
     getBounds() {
+        // Используем встроенный метод getBounds() от Sprite, чтобы избежать рекурсии
+        const spriteBounds = super.getBounds();
         return {
-            x: this.x - this.width / 2,
-            y: this.y - this.height,
-            width: this.width,
-            height: this.height
+            x: spriteBounds.x,
+            y: spriteBounds.y,
+            width: spriteBounds.width,
+            height: spriteBounds.height
         };
     }
     
