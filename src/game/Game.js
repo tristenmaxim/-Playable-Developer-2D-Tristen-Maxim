@@ -13,11 +13,18 @@ class Game {
         this.background = null;
         this.enemies = [];
         this.collectibles = [];
+        this.collisionSystem = null;
         
         // Контейнеры для организации объектов
         this.gameContainer = null;
         this.backgroundContainer = null;
         this.gameplayContainer = null;
+        
+        // Генерация препятствий
+        this.lastEnemySpawn = 0;
+        this.lastCollectibleSpawn = 0;
+        this.difficultyMultiplier = 1;
+        this.gameTime = 0;
     }
     
     /**
@@ -57,6 +64,9 @@ class Game {
         
         // Загружаем ассеты
         await this.loadAssets();
+        
+        // Создаем систему коллизий
+        this.collisionSystem = new CollisionSystem();
         
         // Создаем игровые объекты
         this.createGameObjects();
@@ -116,6 +126,12 @@ class Game {
      * Обновление игры
      */
     update(delta) {
+        // Увеличиваем игровое время
+        this.gameTime += delta;
+        
+        // Увеличиваем сложность со временем
+        this.difficultyMultiplier = 1 + (this.gameTime * CONFIG.SPAWN.DIFFICULTY_INCREASE_RATE);
+        
         // Обновляем фон
         if (this.background) {
             this.background.update(delta);
@@ -142,8 +158,160 @@ class Game {
             }
         });
         
+        // Генерация препятствий
+        this.spawnObstacles(delta);
+        
+        // Проверка коллизий
+        this.checkCollisions();
+        
         // Увеличиваем счет
         this.score += CONFIG.GAME.SCORE_PER_SECOND * (delta / 60);
+    }
+    
+    /**
+     * Генерация препятствий
+     */
+    spawnObstacles(delta) {
+        const currentTime = this.gameTime;
+        
+        // Генерация врагов
+        const enemyInterval = random(
+            CONFIG.SPAWN.ENEMY_INTERVAL_MIN / this.difficultyMultiplier,
+            CONFIG.SPAWN.ENEMY_INTERVAL_MAX / this.difficultyMultiplier
+        );
+        
+        if (currentTime - this.lastEnemySpawn >= enemyInterval) {
+            this.spawnEnemy();
+            this.lastEnemySpawn = currentTime;
+        }
+        
+        // Генерация собираемых предметов
+        const collectibleInterval = random(
+            CONFIG.SPAWN.COLLECTIBLE_INTERVAL_MIN,
+            CONFIG.SPAWN.COLLECTIBLE_INTERVAL_MAX
+        );
+        
+        if (currentTime - this.lastCollectibleSpawn >= collectibleInterval) {
+            this.spawnCollectible();
+            this.lastCollectibleSpawn = currentTime;
+        }
+    }
+    
+    /**
+     * Создание врага
+     */
+    spawnEnemy() {
+        const y = CONFIG.PLAYER.GROUND_Y;
+        const x = CONFIG.SCREEN.WIDTH + 50;
+        this.addEnemy(x, y);
+    }
+    
+    /**
+     * Создание собираемого предмета
+     */
+    spawnCollectible() {
+        const y = CONFIG.PLAYER.GROUND_Y - randomInt(50, 150);
+        const x = CONFIG.SCREEN.WIDTH + 50;
+        this.addCollectible(x, y);
+    }
+    
+    /**
+     * Проверка коллизий
+     */
+    checkCollisions() {
+        if (!this.player || !this.collisionSystem) return;
+        
+        // Проверка коллизии игрока с врагами
+        const enemyCollisions = this.collisionSystem.checkPlayerEnemyCollision(this.player, this.enemies);
+        enemyCollisions.forEach(enemy => {
+            this.handleEnemyCollision(enemy);
+        });
+        
+        // Проверка коллизии игрока с собираемыми предметами
+        const collectibleCollisions = this.collisionSystem.checkPlayerCollectibleCollision(this.player, this.collectibles);
+        collectibleCollisions.forEach(collectible => {
+            this.handleCollectibleCollision(collectible);
+        });
+    }
+    
+    /**
+     * Обработка столкновения с врагом
+     */
+    handleEnemyCollision(enemy) {
+        if (!enemy.isActive) return;
+        
+        // Уменьшаем здоровье
+        this.health--;
+        
+        // Удаляем врага
+        this.removeEnemy(enemy);
+        
+        console.log(`Столкновение! Здоровье: ${this.health}`);
+        
+        // Проверка окончания игры
+        if (this.health <= 0) {
+            this.gameOver();
+        }
+    }
+    
+    /**
+     * Обработка сбора предмета
+     */
+    handleCollectibleCollision(collectible) {
+        if (collectible.isCollected) return;
+        
+        // Собираем предмет
+        if (collectible.collect()) {
+            // Увеличиваем счет
+            this.score += CONFIG.GAME.COLLECTIBLE_SCORE;
+            
+            // Удаляем предмет
+            this.removeCollectible(collectible);
+            
+            console.log(`Предмет собран! Счет: ${this.score}`);
+        }
+    }
+    
+    /**
+     * Окончание игры
+     */
+    gameOver() {
+        this.isRunning = false;
+        console.log(`Игра окончена! Финальный счет: ${Math.floor(this.score)}`);
+        
+        // Сохраняем лучший результат
+        this.saveBestScore();
+        
+        // Пока просто останавливаем игру
+        // Позже добавим экран окончания
+    }
+    
+    /**
+     * Сохранение лучшего результата
+     */
+    saveBestScore() {
+        try {
+            const bestScore = localStorage.getItem('runner_best_score') || 0;
+            const currentScore = Math.floor(this.score);
+            
+            if (currentScore > bestScore) {
+                localStorage.setItem('runner_best_score', currentScore);
+                console.log(`Новый рекорд: ${currentScore}`);
+            }
+        } catch (e) {
+            console.warn('Не удалось сохранить результат:', e);
+        }
+    }
+    
+    /**
+     * Получить лучший результат
+     */
+    getBestScore() {
+        try {
+            return parseInt(localStorage.getItem('runner_best_score') || '0', 10);
+        } catch (e) {
+            return 0;
+        }
     }
     
     /**
@@ -225,6 +393,20 @@ class Game {
         this.isRunning = true;
         this.score = CONFIG.GAME.INITIAL_SCORE;
         this.health = CONFIG.GAME.HEALTH;
+        this.gameTime = 0;
+        this.lastEnemySpawn = 0;
+        this.lastCollectibleSpawn = 0;
+        this.difficultyMultiplier = 1;
+        
+        // Сброс игрока
+        if (this.player) {
+            this.player.reset();
+        }
+        
+        // Очистка препятствий
+        this.enemies.forEach(enemy => this.removeEnemy(enemy));
+        this.collectibles.forEach(collectible => this.removeCollectible(collectible));
+        
         console.log('Игра запущена');
     }
     
