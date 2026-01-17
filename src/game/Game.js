@@ -17,6 +17,10 @@ class Game {
         this.particleSystem = null;
         this.audioManager = null;
         
+        // Пул объектов для оптимизации
+        this.enemyPool = null;
+        this.collectiblePool = null;
+        
         // Контейнеры для организации объектов
         this.gameContainer = null;
         this.backgroundContainer = null;
@@ -99,6 +103,26 @@ class Game {
         this.particleSystem = new ParticleSystem();
         this.gameplayContainer.addChild(this.particleSystem);
         
+        // Создаем пулы объектов
+        this.enemyPool = new ObjectPool(
+            () => new Enemy(),
+            (enemy) => {
+                enemy.deactivate();
+                enemy.visible = false;
+            },
+            5
+        );
+        
+        this.collectiblePool = new ObjectPool(
+            () => new Collectible(),
+            (collectible) => {
+                collectible.deactivate();
+                collectible.isCollected = false;
+                collectible.visible = false;
+            },
+            5
+        );
+        
         // Создаем игровые объекты
         this.createGameObjects();
         
@@ -107,6 +131,9 @@ class Game {
         
         // Настраиваем управление
         this.setupControls();
+        
+        // Настраиваем адаптивность
+        this.setupResponsive();
         
         // Запускаем игру
         this.start();
@@ -211,21 +238,25 @@ class Game {
             this.player.update(delta);
         }
         
-        // Обновляем врагов
-        this.enemies.forEach(enemy => {
-            enemy.update(delta);
+        // Обновляем врагов (оптимизация: проверяем только активных)
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+            const enemy = this.enemies[i];
             if (!enemy.isActive) {
                 this.removeEnemy(enemy);
+                continue;
             }
-        });
+            enemy.update(delta);
+        }
         
-        // Обновляем собираемые предметы
-        this.collectibles.forEach(collectible => {
-            collectible.update(delta);
+        // Обновляем собираемые предметы (оптимизация: проверяем только активных)
+        for (let i = this.collectibles.length - 1; i >= 0; i--) {
+            const collectible = this.collectibles[i];
             if (!collectible.isActive) {
                 this.removeCollectible(collectible);
+                continue;
             }
-        });
+            collectible.update(delta);
+        }
         
         // Обновляем систему частиц
         if (this.particleSystem) {
@@ -296,19 +327,25 @@ class Game {
     }
     
     /**
-     * Проверка коллизий
+     * Проверка коллизий (оптимизация: проверяем только видимые объекты)
      */
     checkCollisions() {
         if (!this.player || !this.collisionSystem) return;
         
+        // Фильтруем только активных и видимых врагов
+        const activeEnemies = this.enemies.filter(e => e.isActive && e.visible);
+        
         // Проверка коллизии игрока с врагами
-        const enemyCollisions = this.collisionSystem.checkPlayerEnemyCollision(this.player, this.enemies);
+        const enemyCollisions = this.collisionSystem.checkPlayerEnemyCollision(this.player, activeEnemies);
         enemyCollisions.forEach(enemy => {
             this.handleEnemyCollision(enemy);
         });
         
+        // Фильтруем только активные и не собранные предметы
+        const activeCollectibles = this.collectibles.filter(c => c.isActive && !c.isCollected && c.visible);
+        
         // Проверка коллизии игрока с собираемыми предметами
-        const collectibleCollisions = this.collisionSystem.checkPlayerCollectibleCollision(this.player, this.collectibles);
+        const collectibleCollisions = this.collisionSystem.checkPlayerCollectibleCollision(this.player, activeCollectibles);
         collectibleCollisions.forEach(collectible => {
             this.handleCollectibleCollision(collectible);
         });
@@ -516,48 +553,52 @@ class Game {
     }
     
     /**
-     * Добавление врага
+     * Добавление врага (с использованием пула)
      */
     addEnemy(x, y) {
-        const enemy = new Enemy();
+        const enemy = this.enemyPool.get();
         enemy.activate(x, y);
         this.enemies.push(enemy);
-        this.gameplayContainer.addChild(enemy);
+        if (!this.gameplayContainer.children.includes(enemy)) {
+            this.gameplayContainer.addChild(enemy);
+        }
         return enemy;
     }
     
     /**
-     * Удаление врага
+     * Удаление врага (возврат в пул)
      */
     removeEnemy(enemy) {
         const index = this.enemies.indexOf(enemy);
         if (index > -1) {
             this.enemies.splice(index, 1);
             this.gameplayContainer.removeChild(enemy);
-            enemy.destroy();
+            this.enemyPool.release(enemy);
         }
     }
     
     /**
-     * Добавление собираемого предмета
+     * Добавление собираемого предмета (с использованием пула)
      */
     addCollectible(x, y) {
-        const collectible = new Collectible();
+        const collectible = this.collectiblePool.get();
         collectible.activate(x, y);
         this.collectibles.push(collectible);
-        this.gameplayContainer.addChild(collectible);
+        if (!this.gameplayContainer.children.includes(collectible)) {
+            this.gameplayContainer.addChild(collectible);
+        }
         return collectible;
     }
     
     /**
-     * Удаление собираемого предмета
+     * Удаление собираемого предмета (возврат в пул)
      */
     removeCollectible(collectible) {
         const index = this.collectibles.indexOf(collectible);
         if (index > -1) {
             this.collectibles.splice(index, 1);
             this.gameplayContainer.removeChild(collectible);
-            collectible.destroy();
+            this.collectiblePool.release(collectible);
         }
     }
     
@@ -578,9 +619,11 @@ class Game {
             this.player.reset();
         }
         
-        // Очистка препятствий
-        this.enemies.forEach(enemy => this.removeEnemy(enemy));
-        this.collectibles.forEach(collectible => this.removeCollectible(collectible));
+        // Очистка препятствий (возврат в пулы)
+        const enemiesCopy = [...this.enemies];
+        enemiesCopy.forEach(enemy => this.removeEnemy(enemy));
+        const collectiblesCopy = [...this.collectibles];
+        collectiblesCopy.forEach(collectible => this.removeCollectible(collectible));
         
         // Скрываем экран окончания
         if (this.endScreen) {
@@ -629,8 +672,48 @@ class Game {
      */
     destroy() {
         this.stop();
+        
+        // Очищаем пулы
+        if (this.enemyPool) {
+            this.enemyPool.clear();
+        }
+        if (this.collectiblePool) {
+            this.collectiblePool.clear();
+        }
+        
+        // Останавливаем музыку
+        if (this.audioManager) {
+            this.audioManager.stopMusic();
+        }
+        
         if (this.app) {
             this.app.destroy(true);
         }
+    }
+    
+    /**
+     * Настройка адаптивности
+     */
+    setupResponsive() {
+        const resize = () => {
+            const container = document.getElementById('game-container');
+            if (!container || !this.app) return;
+            
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            // Вычисляем масштаб
+            const scaleX = containerWidth / CONFIG.SCREEN.WIDTH;
+            const scaleY = containerHeight / CONFIG.SCREEN.HEIGHT;
+            const scale = Math.min(scaleX, scaleY, 1);
+            
+            // Применяем масштаб
+            this.app.renderer.resize(CONFIG.SCREEN.WIDTH, CONFIG.SCREEN.HEIGHT);
+            this.app.view.style.width = (CONFIG.SCREEN.WIDTH * scale) + 'px';
+            this.app.view.style.height = (CONFIG.SCREEN.HEIGHT * scale) + 'px';
+        };
+        
+        window.addEventListener('resize', resize);
+        resize();
     }
 }
