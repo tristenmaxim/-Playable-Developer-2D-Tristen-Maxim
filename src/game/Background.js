@@ -81,16 +81,18 @@ class Background extends PIXI.Container {
     update(delta) {
         this.layers.forEach(layer => {
             if (layer.sprites) {
-                // Движем слой
-                layer.x -= layer.speed * CONFIG.SPEED.BACKGROUND * (delta / 16);
+                // Движем слой (в PixiJS v7 delta обычно около 1)
+                const moveSpeed = layer.speed * CONFIG.SPEED.BACKGROUND * delta;
+                layer.x -= moveSpeed;
                 
                 // Бесшовное зацикливание
                 layer.sprites.forEach(sprite => {
-                    sprite.x -= layer.speed * CONFIG.SPEED.BACKGROUND * (delta / 16);
+                    sprite.x -= moveSpeed;
                     
                     // Если спрайт ушел за левый край, перемещаем его вправо
-                    if (sprite.x + sprite.width < 0) {
-                        sprite.x += layer.width;
+                    const spriteBounds = sprite.getBounds();
+                    if (spriteBounds.x + spriteBounds.width < 0) {
+                        sprite.x += layer.width || spriteBounds.width * 2;
                     }
                 });
             }

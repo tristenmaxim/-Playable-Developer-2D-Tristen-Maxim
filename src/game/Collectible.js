@@ -50,11 +50,12 @@ class Collectible extends PIXI.Sprite {
     update(delta) {
         if (!this.isActive || this.isCollected) return;
         
-        // Движение слева направо
-        this.x -= this.speed * (delta / 16);
+        // Движение справа налево
+        // В PixiJS v7 delta обычно около 1 (60 FPS), конвертируем в пиксели за кадр
+        this.x -= this.speed * delta;
         
         // Вращение
-        this.rotation += this.rotationSpeed;
+        this.rotation += this.rotationSpeed * delta;
         
         // Пульсация (опционально)
         const scale = 1 + Math.sin(this.rotation * 2) * 0.1;
@@ -62,7 +63,7 @@ class Collectible extends PIXI.Sprite {
         
         // Удаление при выходе за экран (используем getBounds() для получения размера)
         const bounds = this.getBounds();
-        if (this.x + bounds.width < 0) {
+        if (bounds.x + bounds.width < 0) {
             this.isActive = false;
         }
     }

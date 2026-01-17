@@ -32,8 +32,8 @@ class Game {
         this.endScreen = null;
         
         // Генерация препятствий
-        this.lastEnemySpawn = 0;
-        this.lastCollectibleSpawn = 0;
+        this.lastEnemySpawn = Date.now();
+        this.lastCollectibleSpawn = Date.now();
         this.difficultyMultiplier = 1;
         this.gameTime = 0;
     }
@@ -225,11 +225,14 @@ class Game {
      * Обновление игры
      */
     update(delta) {
-        // Увеличиваем игровое время
+        // Увеличиваем игровое время (в кадрах)
         this.gameTime += delta;
         
-        // Увеличиваем сложность со временем
-        this.difficultyMultiplier = 1 + (this.gameTime * CONFIG.SPAWN.DIFFICULTY_INCREASE_RATE);
+        // Увеличиваем сложность со временем (конвертируем кадры в миллисекунды)
+        // delta обычно около 1, так что gameTime примерно равно количеству кадров
+        // Предполагаем 60 FPS, значит 1 кадр = ~16.67 мс
+        const timeInMs = this.gameTime * 16.67;
+        this.difficultyMultiplier = 1 + (timeInMs * CONFIG.SPAWN.DIFFICULTY_INCREASE_RATE);
         
         // Обновляем фон
         if (this.background) {
@@ -286,7 +289,7 @@ class Game {
      * Генерация препятствий
      */
     spawnObstacles(delta) {
-        const currentTime = this.gameTime;
+        const currentTime = Date.now();
         
         // Генерация врагов
         const enemyInterval = random(
@@ -301,8 +304,8 @@ class Game {
         
         // Генерация собираемых предметов
         const collectibleInterval = random(
-            CONFIG.SPAWN.COLLECTIBLE_INTERVAL_MIN,
-            CONFIG.SPAWN.COLLECTIBLE_INTERVAL_MAX
+            CONFIG.SPAWN.COLLECTIBLE_INTERVAL_MIN / this.difficultyMultiplier,
+            CONFIG.SPAWN.COLLECTIBLE_INTERVAL_MAX / this.difficultyMultiplier
         );
         
         if (currentTime - this.lastCollectibleSpawn >= collectibleInterval) {
@@ -317,7 +320,8 @@ class Game {
     spawnEnemy() {
         const y = CONFIG.PLAYER.GROUND_Y;
         const x = CONFIG.SCREEN.WIDTH + 50;
-        this.addEnemy(x, y);
+        const enemy = this.addEnemy(x, y);
+        console.log(`[Game] Создан враг на позиции (${x}, ${y})`);
     }
     
     /**
@@ -326,7 +330,8 @@ class Game {
     spawnCollectible() {
         const y = CONFIG.PLAYER.GROUND_Y - randomInt(50, 150);
         const x = CONFIG.SCREEN.WIDTH + 50;
-        this.addCollectible(x, y);
+        const collectible = this.addCollectible(x, y);
+        console.log(`[Game] Создан собираемый предмет на позиции (${x}, ${y})`);
     }
     
     /**
@@ -613,8 +618,8 @@ class Game {
         this.score = CONFIG.GAME.INITIAL_SCORE;
         this.health = CONFIG.GAME.HEALTH;
         this.gameTime = 0;
-        this.lastEnemySpawn = 0;
-        this.lastCollectibleSpawn = 0;
+        this.lastEnemySpawn = Date.now();
+        this.lastCollectibleSpawn = Date.now();
         this.difficultyMultiplier = 1;
         
         // Сброс игрока

@@ -1155,16 +1155,18 @@ class Background extends PIXI.Container {
     update(delta) {
         this.layers.forEach(layer => {
             if (layer.sprites) {
-                // Движем слой
-                layer.x -= layer.speed * CONFIG.SPEED.BACKGROUND * (delta / 16);
+                // Движем слой (в PixiJS v7 delta обычно около 1)
+                const moveSpeed = layer.speed * CONFIG.SPEED.BACKGROUND * delta;
+                layer.x -= moveSpeed;
                 
                 // Бесшовное зацикливание
                 layer.sprites.forEach(sprite => {
-                    sprite.x -= layer.speed * CONFIG.SPEED.BACKGROUND * (delta / 16);
+                    sprite.x -= moveSpeed;
                     
                     // Если спрайт ушел за левый край, перемещаем его вправо
-                    if (sprite.x + sprite.width < 0) {
-                        sprite.x += layer.width;
+                    const spriteBounds = sprite.getBounds();
+                    if (spriteBounds.x + spriteBounds.width < 0) {
+                        sprite.x += layer.width || spriteBounds.width * 2;
                     }
                 });
             }
@@ -1231,12 +1233,14 @@ class Enemy extends PIXI.Sprite {
     update(delta) {
         if (!this.isActive) return;
         
-        // Движение слева направо
-        this.x -= this.speed * (delta / 16);
+        // Движение справа налево
+        // В PixiJS v7 delta обычно около 1 (60 FPS), конвертируем в пиксели за кадр
+        // speed = 5 пикселей за кадр при 60 FPS
+        this.x -= this.speed * delta;
         
         // Удаление при выходе за экран (используем getBounds() для получения размера)
         const bounds = this.getBounds();
-        if (this.x + bounds.width < 0) {
+        if (bounds.x + bounds.width < 0) {
             this.isActive = false;
         }
     }
@@ -1328,11 +1332,12 @@ class Collectible extends PIXI.Sprite {
     update(delta) {
         if (!this.isActive || this.isCollected) return;
         
-        // Движение слева направо
-        this.x -= this.speed * (delta / 16);
+        // Движение справа налево
+        // В PixiJS v7 delta обычно около 1 (60 FPS), конвертируем в пиксели за кадр
+        this.x -= this.speed * delta;
         
         // Вращение
-        this.rotation += this.rotationSpeed;
+        this.rotation += this.rotationSpeed * delta;
         
         // Пульсация (опционально)
         const scale = 1 + Math.sin(this.rotation * 2) * 0.1;
@@ -1340,7 +1345,7 @@ class Collectible extends PIXI.Sprite {
         
         // Удаление при выходе за экран (используем getBounds() для получения размера)
         const bounds = this.getBounds();
-        if (this.x + bounds.width < 0) {
+        if (bounds.x + bounds.width < 0) {
             this.isActive = false;
         }
     }
@@ -1616,8 +1621,8 @@ class Game {
         this.endScreen = null;
         
         // Генерация препятствий
-        this.lastEnemySpawn = 0;
-        this.lastCollectibleSpawn = 0;
+        this.lastEnemySpawn = Date.now();
+        this.lastCollectibleSpawn = Date.now();
         this.difficultyMultiplier = 1;
         this.gameTime = 0;
     }
@@ -1809,11 +1814,14 @@ class Game {
      * Обновление игры
      */
     update(delta) {
-        // Увеличиваем игровое время
+        // Увеличиваем игровое время (в кадрах)
         this.gameTime += delta;
         
-        // Увеличиваем сложность со временем
-        this.difficultyMultiplier = 1 + (this.gameTime * CONFIG.SPAWN.DIFFICULTY_INCREASE_RATE);
+        // Увеличиваем сложность со временем (конвертируем кадры в миллисекунды)
+        // delta обычно около 1, так что gameTime примерно равно количеству кадров
+        // Предполагаем 60 FPS, значит 1 кадр = ~16.67 мс
+        const timeInMs = this.gameTime * 16.67;
+        this.difficultyMultiplier = 1 + (timeInMs * CONFIG.SPAWN.DIFFICULTY_INCREASE_RATE);
         
         // Обновляем фон
         if (this.background) {
@@ -1870,7 +1878,7 @@ class Game {
      * Генерация препятствий
      */
     spawnObstacles(delta) {
-        const currentTime = this.gameTime;
+        const currentTime = Date.now();
         
         // Генерация врагов
         const enemyInterval = random(
@@ -1885,8 +1893,8 @@ class Game {
         
         // Генерация собираемых предметов
         const collectibleInterval = random(
-            CONFIG.SPAWN.COLLECTIBLE_INTERVAL_MIN,
-            CONFIG.SPAWN.COLLECTIBLE_INTERVAL_MAX
+            CONFIG.SPAWN.COLLECTIBLE_INTERVAL_MIN / this.difficultyMultiplier,
+            CONFIG.SPAWN.COLLECTIBLE_INTERVAL_MAX / this.difficultyMultiplier
         );
         
         if (currentTime - this.lastCollectibleSpawn >= collectibleInterval) {
@@ -1901,7 +1909,8 @@ class Game {
     spawnEnemy() {
         const y = CONFIG.PLAYER.GROUND_Y;
         const x = CONFIG.SCREEN.WIDTH + 50;
-        this.addEnemy(x, y);
+        const enemy = this.addEnemy(x, y);
+        console.log(`[Game] Создан враг на позиции (${x}, ${y})`);
     }
     
     /**
@@ -1910,7 +1919,8 @@ class Game {
     spawnCollectible() {
         const y = CONFIG.PLAYER.GROUND_Y - randomInt(50, 150);
         const x = CONFIG.SCREEN.WIDTH + 50;
-        this.addCollectible(x, y);
+        const collectible = this.addCollectible(x, y);
+        console.log(`[Game] Создан собираемый предмет на позиции (${x}, ${y})`);
     }
     
     /**
@@ -2197,8 +2207,8 @@ class Game {
         this.score = CONFIG.GAME.INITIAL_SCORE;
         this.health = CONFIG.GAME.HEALTH;
         this.gameTime = 0;
-        this.lastEnemySpawn = 0;
-        this.lastCollectibleSpawn = 0;
+        this.lastEnemySpawn = Date.now();
+        this.lastCollectibleSpawn = Date.now();
         this.difficultyMultiplier = 1;
         
         // Сброс игрока

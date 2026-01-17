@@ -42,12 +42,14 @@ class Enemy extends PIXI.Sprite {
     update(delta) {
         if (!this.isActive) return;
         
-        // Движение слева направо
-        this.x -= this.speed * (delta / 16);
+        // Движение справа налево
+        // В PixiJS v7 delta обычно около 1 (60 FPS), конвертируем в пиксели за кадр
+        // speed = 5 пикселей за кадр при 60 FPS
+        this.x -= this.speed * delta;
         
         // Удаление при выходе за экран (используем getBounds() для получения размера)
         const bounds = this.getBounds();
-        if (this.x + bounds.width < 0) {
+        if (bounds.x + bounds.width < 0) {
             this.isActive = false;
         }
     }
