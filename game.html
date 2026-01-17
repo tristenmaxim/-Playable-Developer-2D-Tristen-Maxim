@@ -110,20 +110,7 @@
     
     
     <!-- Main Entry Point -->
-    <script>
-        // Initialize game when page loads
-        window.addEventListener('DOMContentLoaded', async () => {
-            try {
-                const game = new Game();
-                await game.init();
-                document.getElementById('loading-screen').classList.add('hidden');
-            } catch (error) {
-                console.error('Ошибка инициализации игры:', error);
-                document.getElementById('loading-screen').innerHTML = 
-                    '<div style="color: #ff0000;">Ошибка загрузки игры</div>';
-            }
-        });
-    </script>
+    
 <script>
 var DC=Object.defineProperty;var Mx=Object.getOwnPropertySymbols;var UC=Object.prototype.hasOwnProperty,kC=Object.prototype.propertyIsEnumerable;var Cx=(d,Ot,Gt)=>Ot in d?DC(d,Ot,{enumerable:!0,configurable:!0,writable:!0,value:Gt}):d[Ot]=Gt,Ox=(d,Ot)=>{for(var Gt in Ot||(Ot={}))UC.call(Ot,Gt)&&Cx(d,Gt,Ot[Gt]);if(Mx)for(var Gt of Mx(Ot))kC.call(Ot,Gt)&&Cx(d,Gt,Ot[Gt]);return d};/*!
  * PixiJS - v8.14.3
@@ -4647,9 +4634,7 @@ const EMBEDDED_ASSETS = {
             'music.mp3': 'music'
         };
         
-        // Загружаем все ассеты асинхронно
-        const loadPromises = [];
-        
+        // Загружаем все ассеты
         Object.keys(assetMapping).forEach(fileName => {
             const alias = assetMapping[fileName];
             const dataURI = EMBEDDED_ASSETS[fileName];
@@ -4677,7 +4662,7 @@ const EMBEDDED_ASSETS = {
                     console.error(`Ошибка загрузки текстуры ${alias}:`, error);
                 }
             } else if (mimeType.startsWith('audio/')) {
-                // Для аудио создаем Audio объект синхронно
+                // Для аудио создаем Audio объект
                 try {
                     const audio = new Audio(dataURI);
                     // Предзагружаем аудио
@@ -4689,15 +4674,6 @@ const EMBEDDED_ASSETS = {
                 }
             }
         });
-        
-        // Ждем загрузки всех текстур (если есть)
-        if (loadPromises.length > 0) {
-            try {
-                await Promise.all(loadPromises);
-            } catch (error) {
-                console.error('Ошибка при загрузке текстур:', error);
-            }
-        }
         
         console.log('Все встроенные ассеты загружены');
         
@@ -4716,5 +4692,19 @@ const EMBEDDED_ASSETS = {
 })(); // Закрываем IIFE для EMBEDDED_ASSETS
 
 </script>
+<script>
+        // Initialize game when page loads
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const game = new Game();
+                await game.init();
+                document.getElementById('loading-screen').classList.add('hidden');
+            } catch (error) {
+                console.error('Ошибка инициализации игры:', error);
+                document.getElementById('loading-screen').innerHTML = 
+                    '<div style="color: #ff0000;">Ошибка загрузки игры</div>';
+            }
+        });
+    </script>
 </body>
 </html>

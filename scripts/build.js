@@ -272,9 +272,7 @@ function injectAssets(assetsMap) {
             'music.mp3': 'music'
         };
         
-        // Загружаем все ассеты асинхронно
-        const loadPromises = [];
-        
+        // Загружаем все ассеты
         Object.keys(assetMapping).forEach(fileName => {
             const alias = assetMapping[fileName];
             const dataURI = EMBEDDED_ASSETS[fileName];
@@ -302,7 +300,7 @@ function injectAssets(assetsMap) {
                     console.error(\`Ошибка загрузки текстуры \${alias}:\`, error);
                 }
             } else if (mimeType.startsWith('audio/')) {
-                // Для аудио создаем Audio объект синхронно
+                // Для аудио создаем Audio объект
                 try {
                     const audio = new Audio(dataURI);
                     // Предзагружаем аудио
@@ -314,15 +312,6 @@ function injectAssets(assetsMap) {
                 }
             }
         });
-        
-        // Ждем загрузки всех текстур (если есть)
-        if (loadPromises.length > 0) {
-            try {
-                await Promise.all(loadPromises);
-            } catch (error) {
-                console.error('Ошибка при загрузке текстур:', error);
-            }
-        }
         
         console.log('Все встроенные ассеты загружены');
         
@@ -418,8 +407,17 @@ async function buildHTML() {
     // Удаляем ссылки на внешние ресурсы из head (если есть)
     finalHTML = finalHTML.replace(/<link[^>]*href=["'][^"']+["'][^>]*>/g, '');
     
-    // Добавляем PixiJS и объединенный JavaScript перед закрывающим тегом body
-    const scriptTag = `${pixiScript}\n<script>\n${bundledJS}\n</script>`;
+    // Извлекаем код инициализации игры из шаблона (если есть)
+    const initCodeMatch = template.match(/<script>[\s\S]*?window\.addEventListener\(['"]DOMContentLoaded['"][\s\S]*?<\/script>/);
+    let initCode = '';
+    if (initCodeMatch) {
+        initCode = initCodeMatch[0];
+        // Удаляем код инициализации из шаблона (он будет добавлен в конце)
+        finalHTML = finalHTML.replace(initCodeMatch[0], '');
+    }
+    
+    // Добавляем PixiJS, объединенный JavaScript и код инициализации перед закрывающим тегом body
+    const scriptTag = `${pixiScript}\n<script>\n${bundledJS}\n</script>${initCode ? '\n' + initCode : ''}`;
     finalHTML = finalHTML.replace('</body>', `${scriptTag}\n</body>`);
     
     // Сохраняем результат
