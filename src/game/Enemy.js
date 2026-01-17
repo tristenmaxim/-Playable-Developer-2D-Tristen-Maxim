@@ -1,0 +1,73 @@
+// Класс врага
+
+class Enemy extends PIXI.Sprite {
+    constructor(texture) {
+        super(texture || this.createDefaultTexture());
+        
+        this.speed = CONFIG.SPEED.ENEMY;
+        this.isActive = true;
+        
+        // Устанавливаем начальную позицию (справа за экраном)
+        this.x = CONFIG.SCREEN.WIDTH + 100;
+        this.y = CONFIG.PLAYER.GROUND_Y;
+        
+        // Якорь снизу по центру
+        this.anchor.set(0.5, 1);
+    }
+    
+    /**
+     * Создание дефолтной текстуры (красный прямоугольник)
+     */
+    createDefaultTexture() {
+        const graphics = new PIXI.Graphics();
+        graphics.beginFill(0xff0000);
+        graphics.drawRect(0, 0, 40, 60);
+        graphics.endFill();
+        return graphics.generateCanvasTexture();
+    }
+    
+    /**
+     * Обновление позиции
+     */
+    update(delta) {
+        if (!this.isActive) return;
+        
+        // Движение слева направо
+        this.x -= this.speed * (delta / 16);
+        
+        // Удаление при выходе за экран
+        if (this.x + this.width < 0) {
+            this.isActive = false;
+        }
+    }
+    
+    /**
+     * Получить границы для коллизий
+     */
+    getBounds() {
+        return {
+            x: this.x - this.width / 2,
+            y: this.y - this.height,
+            width: this.width,
+            height: this.height
+        };
+    }
+    
+    /**
+     * Активация врага
+     */
+    activate(x, y) {
+        this.x = x || CONFIG.SCREEN.WIDTH + 100;
+        this.y = y || CONFIG.PLAYER.GROUND_Y;
+        this.isActive = true;
+        this.visible = true;
+    }
+    
+    /**
+     * Деактивация врага
+     */
+    deactivate() {
+        this.isActive = false;
+        this.visible = false;
+    }
+}
