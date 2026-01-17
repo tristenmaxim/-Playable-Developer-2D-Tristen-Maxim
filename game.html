@@ -994,7 +994,23 @@ class Player extends PIXI.Container {
         if (texture) {
             // Если есть текстура, заменяем графику на спрайт
             this.removeChild(this.sprite);
-            this.sprite = new PIXI.Sprite(texture);
+            
+            // Проверяем, это спрайт-лист или одиночная текстура
+            // Если текстура большая (спрайт-лист), вырезаем один кадр
+            // Размеры спрайт-листа: 932x1506, предположим 2 кадра по вертикали
+            if (texture.width > 500 || texture.height > 800) {
+                // Это спрайт-лист, вырезаем первый кадр (стояние)
+                const frameWidth = texture.width;
+                const frameHeight = texture.height / 2; // Предполагаем 2 кадра по вертикали
+                
+                const frame = new PIXI.Rectangle(0, 0, frameWidth, frameHeight);
+                const frameTexture = new PIXI.Texture(texture.baseTexture, frame);
+                this.sprite = new PIXI.Sprite(frameTexture);
+            } else {
+                // Одиночная текстура
+                this.sprite = new PIXI.Sprite(texture);
+            }
+            
             this.sprite.anchor.set(0.5, 1); // Якорь снизу по центру
             this.addChild(this.sprite);
             
