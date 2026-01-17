@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runner Game v2.0</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #000;
+            font-family: Arial, sans-serif;
+        }
+        
+        #game-container {
+            position: relative;
+        }
+        
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    
+    <!-- PixiJS v7 -->
+    <script src="https://pixijs.download/release/pixi.min.js"></script>
+    
+    <script>
+        // Этап 1: Базовая настройка проекта
+        console.log('[Этап 1] Инициализация игры...');
+        
+        // Создаем PixiJS Application
+        const app = new PIXI.Application();
+        
+        // Инициализируем приложение
+        app.init({
+            width: 375,
+            height: 667,
+            backgroundColor: 0x87CEEB, // Светло-голубой фон
+            resolution: window.devicePixelRatio || 1,
+            autoDensity: true
+        }).then(() => {
+            console.log('[Этап 1] ✅ PixiJS Application создан');
+            console.log('[Этап 1] Размер canvas:', app.canvas.width, 'x', app.canvas.height);
+            
+            // Добавляем canvas в контейнер
+            const container = document.getElementById('game-container');
+            container.appendChild(app.canvas);
+            
+            console.log('[Этап 1] ✅ Canvas добавлен в DOM');
+            console.log('[Этап 1] ✅ Этап 1 завершен - базовая настройка работает!');
+        }).catch((error) => {
+            console.error('[Этап 1] ❌ Ошибка инициализации:', error);
+        });
+    </script>
+</body>
+</html>
