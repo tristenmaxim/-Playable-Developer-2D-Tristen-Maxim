@@ -242,6 +242,7 @@ function injectAssets(jsCode, assetsMap) {
 // Патч для AssetLoader - использование встроенных ассетов
 (function() {
     if (typeof EMBEDDED_ASSETS === 'undefined') {
+        console.warn('EMBEDDED_ASSETS не найдены, используется стандартная загрузка');
         return; // Встроенные ассеты не найдены
     }
     
@@ -250,29 +251,9 @@ function injectAssets(jsCode, assetsMap) {
     
     // Переопределяем метод load
     AssetLoader.prototype.load = async function() {
-        // Создаем текстуры из data URI для изображений
-        const imageAssets = {};
-        const audioAssets = {};
+        console.log('Загрузка встроенных ассетов...');
         
-        Object.keys(EMBEDDED_ASSETS).forEach(name => {
-            const dataURI = EMBEDDED_ASSETS[name];
-            const mimeMatch = dataURI.match(/data:([^;]+);/);
-            if (!mimeMatch) return;
-            
-            const mimeType = mimeMatch[1];
-            
-            if (mimeType.startsWith('image/')) {
-                // Создаем текстуру из data URI
-                const texture = PIXI.Texture.from(dataURI);
-                imageAssets[name] = texture;
-            } else if (mimeType.startsWith('audio/')) {
-                // Для аудио создаем Audio объект
-                const audio = new Audio(dataURI);
-                audioAssets[name] = audio;
-            }
-        });
-        
-        // Маппинг имен файлов на алиасы из CONFIG
+        // Маппинг имен файлов на алиасы
         const assetMapping = {
             'player-spritesheet.png': 'player',
             'player-large.png': 'playerLarge',
@@ -288,30 +269,68 @@ function injectAssets(jsCode, assetsMap) {
             'music.mp3': 'music'
         };
         
-        // Заполняем loadedAssets
+        // Загружаем все ассеты асинхронно
+        const loadPromises = [];
+        
         Object.keys(assetMapping).forEach(fileName => {
             const alias = assetMapping[fileName];
-            if (imageAssets[fileName]) {
-                this.loadedAssets[alias] = imageAssets[fileName];
-            } else if (audioAssets[fileName]) {
-                this.loadedAssets[alias] = audioAssets[fileName];
+            const dataURI = EMBEDDED_ASSETS[fileName];
+            
+            if (!dataURI) {
+                console.warn(\`Ассет \${fileName} не найден в EMBEDDED_ASSETS\`);
+                return;
+            }
+            
+            const mimeMatch = dataURI.match(/data:([^;]+);/);
+            if (!mimeMatch) {
+                console.warn(\`Неверный формат data URI для \${fileName}\`);
+                return;
+            }
+            
+            const mimeType = mimeMatch[1];
+            
+            if (mimeType.startsWith('image/')) {
+                // Создаем текстуру из data URI
+                try {
+                    const texture = PIXI.Texture.from(dataURI);
+                    this.loadedAssets[alias] = texture;
+                    console.log(\`Загружена текстура: \${alias}\`);
+                } catch (error) {
+                    console.error(\`Ошибка загрузки текстуры \${alias}:\`, error);
+                }
+            } else if (mimeType.startsWith('audio/')) {
+                // Для аудио создаем Audio объект синхронно
+                try {
+                    const audio = new Audio(dataURI);
+                    // Предзагружаем аудио
+                    audio.preload = 'auto';
+                    this.loadedAssets[alias] = audio;
+                    console.log(\`Загружен звук: \${alias}\`);
+                } catch (error) {
+                    console.error(\`Ошибка загрузки звука \${alias}:\`, error);
+                }
             }
         });
         
-        // Вызываем оригинальный load для совместимости (если нужно)
-        if (originalLoad) {
+        // Ждем загрузки всех текстур (если есть)
+        if (loadPromises.length > 0) {
             try {
-                await originalLoad.call(this);
-            } catch (e) {
-                // Игнорируем ошибки, так как ассеты уже загружены
+                await Promise.all(loadPromises);
+            } catch (error) {
+                console.error('Ошибка при загрузке текстур:', error);
             }
         }
+        
+        console.log('Все встроенные ассеты загружены');
         
         // Скрываем экран загрузки
         const loadingScreen = document.getElementById('loading-screen');
         if (loadingScreen) {
             loadingScreen.style.display = 'none';
         }
+        
+        // Обновляем прогресс
+        this.loadProgress = 100;
         
         return this.loadedAssets;
     };
@@ -324,7 +343,7 @@ function injectAssets(jsCode, assetsMap) {
 /**
  * Создание финального HTML
  */
-function buildHTML() {
+async function buildHTML() {
     console.log('Начинаю сборку...\n');
     
     // Читаем шаблон
@@ -350,6 +369,40 @@ function buildHTML() {
     // Создаем финальный HTML
     let finalHTML = template;
     
+    // Извлекаем URL PixiJS перед удалением script тегов
+    const pixiMatch = template.match(/<script[^>]*src=["']([^"']*pixi[^"']*)["'][^>]*><\/script>/i);
+    let pixiScript = '';
+    
+    if (pixiMatch) {
+        const pixiUrl = pixiMatch[1];
+        console.log(`Найден PixiJS: ${pixiUrl}`);
+        // Загружаем PixiJS и встраиваем его
+        try {
+            const https = require('https');
+            const http = require('http');
+            const url = require('url');
+            
+            const pixiContent = await new Promise((resolve, reject) => {
+                const parsedUrl = url.parse(pixiUrl);
+                const client = parsedUrl.protocol === 'https:' ? https : http;
+                
+                client.get(pixiUrl, (res) => {
+                    let data = '';
+                    res.on('data', (chunk) => { data += chunk; });
+                    res.on('end', () => resolve(data));
+                }).on('error', reject);
+            });
+            
+            pixiScript = `<script>\n${pixiContent}\n</script>`;
+            console.log('PixiJS встроен в файл');
+        } catch (error) {
+            console.warn(`Не удалось встроить PixiJS, оставляем ссылку: ${error.message}`);
+            pixiScript = `<script src="${pixiMatch[0].match(/src=["']([^"']+)["']/)[1]}"></script>`;
+        }
+    } else {
+        console.warn('PixiJS не найден в шаблоне!');
+    }
+    
     // Удаляем все script теги с src
     finalHTML = finalHTML.replace(/<script[^>]*src=["'][^"']+["'][^>]*><\/script>/g, '');
     
@@ -359,8 +412,8 @@ function buildHTML() {
     // Удаляем ссылки на внешние ресурсы из head (если есть)
     finalHTML = finalHTML.replace(/<link[^>]*href=["'][^"']+["'][^>]*>/g, '');
     
-    // Добавляем объединенный JavaScript перед закрывающим тегом body
-    const scriptTag = `<script>\n${bundledJS}\n</script>`;
+    // Добавляем PixiJS и объединенный JavaScript перед закрывающим тегом body
+    const scriptTag = `${pixiScript}\n<script>\n${bundledJS}\n</script>`;
     finalHTML = finalHTML.replace('</body>', `${scriptTag}\n</body>`);
     
     // Сохраняем результат
@@ -384,7 +437,10 @@ function buildHTML() {
 
 // Запуск сборки
 if (require.main === module) {
-    buildHTML();
+    buildHTML().catch(error => {
+        console.error('Ошибка сборки:', error);
+        process.exit(1);
+    });
 }
 
 module.exports = { buildHTML };
