@@ -293,11 +293,14 @@ function injectAssets(assetsMap) {
             if (mimeType.startsWith('image/')) {
                 // Создаем текстуру из data URI
                 try {
+                    // Используем PIXI.Texture.from() - он должен работать с data URI
                     const texture = PIXI.Texture.from(dataURI);
                     this.loadedAssets[alias] = texture;
-                    console.log(\`Загружена текстура: \${alias}\`);
+                    console.log(\`✓ Загружена текстура: \${alias}\`);
                 } catch (error) {
-                    console.error(\`Ошибка загрузки текстуры \${alias}:\`, error);
+                    console.error(\`✗ Ошибка загрузки текстуры \${alias}:\`, error);
+                    // Создаем пустую текстуру как fallback
+                    this.loadedAssets[alias] = PIXI.Texture.EMPTY;
                 }
             } else if (mimeType.startsWith('audio/')) {
                 // Для аудио создаем Audio объект
