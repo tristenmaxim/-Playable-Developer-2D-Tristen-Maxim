@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Runner - Playable Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 375px;
+            max-height: 667px;
+        }
+        
+        #loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #121215;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            z-index: 1000;
+        }
+        
+        #loading-screen.hidden {
+            display: none;
+        }
+        
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #ff9500;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="loading-screen">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Загрузка игры...</div>
+        </div>
+        <canvas id="game-canvas"></canvas>
+    </div>
+    
+    <!-- PixiJS from CDN -->
+    <script src="https://pixijs.download/release/pixi.min.js"></script>
+    
+    <!-- Game Configuration -->
+    <script src="src/config.js"></script>
+    
+    <!-- Utilities -->
+    <script src="src/utils/AssetLoader.js"></script>
+    <script src="src/utils/helpers.js"></script>
+    
+    <!-- Game Classes -->
+    <script src="src/game/Game.js"></script>
+    
+    <!-- Main Entry Point -->
+    <script>
+        // Initialize game when page loads
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const game = new Game();
+                await game.init();
+                document.getElementById('loading-screen').classList.add('hidden');
+            } catch (error) {
+                console.error('Ошибка инициализации игры:', error);
+                document.getElementById('loading-screen').innerHTML = 
+                    '<div style="color: #ff0000;">Ошибка загрузки игры</div>';
+            }
+        });
+    </script>
+</body>
+</html>
