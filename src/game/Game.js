@@ -19,6 +19,11 @@ class Game {
         this.gameContainer = null;
         this.backgroundContainer = null;
         this.gameplayContainer = null;
+        this.uiContainer = null;
+        
+        // UI
+        this.uiManager = null;
+        this.endScreen = null;
         
         // Генерация препятствий
         this.lastEnemySpawn = 0;
@@ -54,10 +59,24 @@ class Game {
         this.gameContainer = new PIXI.Container();
         this.backgroundContainer = new PIXI.Container();
         this.gameplayContainer = new PIXI.Container();
+        this.uiContainer = new PIXI.Container();
         
         this.app.stage.addChild(this.gameContainer);
         this.gameContainer.addChild(this.backgroundContainer);
         this.gameContainer.addChild(this.gameplayContainer);
+        this.gameContainer.addChild(this.uiContainer);
+        
+        // Создаем UI менеджер
+        this.uiManager = new UIManager();
+        this.uiManager.init();
+        this.uiContainer.addChild(this.uiManager);
+        
+        // Создаем экран окончания игры
+        this.endScreen = new EndScreen();
+        this.endScreen.setRestartCallback(() => {
+            this.start();
+        });
+        this.uiContainer.addChild(this.endScreen);
         
         // Инициализируем загрузчик ассетов
         this.assetLoader = new AssetLoader();
@@ -166,6 +185,12 @@ class Game {
         
         // Увеличиваем счет
         this.score += CONFIG.GAME.SCORE_PER_SECOND * (delta / 60);
+        
+        // Обновляем UI
+        if (this.uiManager) {
+            this.uiManager.updateScore(this.score);
+            this.uiManager.updateHealth(this.health);
+        }
     }
     
     /**
@@ -265,6 +290,11 @@ class Game {
             // Увеличиваем счет
             this.score += CONFIG.GAME.COLLECTIBLE_SCORE;
             
+            // Анимация UI
+            if (this.uiManager) {
+                this.uiManager.animateScore();
+            }
+            
             // Удаляем предмет
             this.removeCollectible(collectible);
             
@@ -277,13 +307,17 @@ class Game {
      */
     gameOver() {
         this.isRunning = false;
-        console.log(`Игра окончена! Финальный счет: ${Math.floor(this.score)}`);
+        const finalScore = Math.floor(this.score);
+        console.log(`Игра окончена! Финальный счет: ${finalScore}`);
         
         // Сохраняем лучший результат
-        this.saveBestScore();
+        const bestScore = this.saveBestScore();
         
-        // Пока просто останавливаем игру
-        // Позже добавим экран окончания
+        // Показываем экран окончания
+        if (this.endScreen) {
+            const isWin = this.health > 0; // Пока просто проверяем здоровье
+            this.endScreen.show(isWin, finalScore, bestScore);
+        }
     }
     
     /**
@@ -291,15 +325,18 @@ class Game {
      */
     saveBestScore() {
         try {
-            const bestScore = localStorage.getItem('runner_best_score') || 0;
+            const bestScore = parseInt(localStorage.getItem('runner_best_score') || '0', 10);
             const currentScore = Math.floor(this.score);
             
             if (currentScore > bestScore) {
                 localStorage.setItem('runner_best_score', currentScore);
                 console.log(`Новый рекорд: ${currentScore}`);
+                return currentScore;
             }
+            return bestScore;
         } catch (e) {
             console.warn('Не удалось сохранить результат:', e);
+            return 0;
         }
     }
     
@@ -406,6 +443,11 @@ class Game {
         // Очистка препятствий
         this.enemies.forEach(enemy => this.removeEnemy(enemy));
         this.collectibles.forEach(collectible => this.removeCollectible(collectible));
+        
+        // Скрываем экран окончания
+        if (this.endScreen) {
+            this.endScreen.hide();
+        }
         
         console.log('Игра запущена');
     }
