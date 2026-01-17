@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(node scripts/build.js:*)",
+      "Bash(claude mcp add:*)",
+      "Bash(head:*)",
+      "Bash(awk:*)",
+      "Bash(claude mcp list:*)",
+      "Bash(curl:*)",
+      "Bash(brew list:*)",
+      "Bash(node -e:*)"
+    ]
+  }
+}

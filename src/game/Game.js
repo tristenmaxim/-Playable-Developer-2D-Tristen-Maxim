@@ -157,31 +157,34 @@ class Game {
     
     /**
      * Загрузка звуков
+     * Проверяет сначала встроенные ассеты, затем пытается загрузить из файлов
      */
     async loadSounds() {
         if (!this.audioManager) return;
-        
+
         try {
-            // Загружаем звуки (если файлы существуют)
-            const soundFiles = [
-                { name: 'jump', url: 'assets/audio/jump.mp3' },
-                { name: 'collect', url: 'assets/audio/collect.mp3' },
-                { name: 'collision', url: 'assets/audio/collision.mp3' }
-            ];
-            
-            for (const sound of soundFiles) {
-                try {
-                    await this.audioManager.loadSound(sound.name, sound.url);
-                } catch (e) {
-                    console.warn(`Не удалось загрузить звук ${sound.name}:`, e);
+            // Маппинг имён звуков
+            const soundMapping = {
+                'jump': 'jumpSound',
+                'collect': 'collectSound',
+                'collision': 'collisionSound'
+            };
+
+            // Сначала пробуем использовать встроенные ассеты
+            for (const [name, alias] of Object.entries(soundMapping)) {
+                const embeddedSound = this.assetLoader.loadedAssets[alias];
+                if (embeddedSound && embeddedSound instanceof Audio) {
+                    this.audioManager.sounds[name] = embeddedSound;
+                    console.log(`Звук ${name} загружен из встроенных ассетов`);
                 }
             }
-            
-            // Загружаем музыку
-            try {
-                await this.audioManager.loadMusic('assets/audio/music.mp3');
-            } catch (e) {
-                console.warn('Не удалось загрузить музыку:', e);
+
+            // Музыка
+            const embeddedMusic = this.assetLoader.loadedAssets['music'];
+            if (embeddedMusic && embeddedMusic instanceof Audio) {
+                this.audioManager.musicAudio = embeddedMusic;
+                this.audioManager.musicAudio.loop = true;
+                console.log('Музыка загружена из встроенных ассетов');
             }
         } catch (e) {
             console.warn('Ошибка загрузки звуков:', e);

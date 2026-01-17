@@ -1,20 +1,25 @@
 // Система загрузки ассетов
+// Совместима с PixiJS v7 (использует PIXI.Assets вместо устаревшего PIXI.Loader)
 
 class AssetLoader {
     constructor() {
-        this.loader = new PIXI.Loader();
+        // В PixiJS v7 PIXI.Loader удалён, используем PIXI.Assets
         this.loadedAssets = {};
         this.loadProgress = 0;
     }
     
     /**
      * Добавить ресурс для загрузки
+     * В v7 используется PIXI.Assets.add()
      */
     add(name, url) {
-        this.loader.add(name, url);
+        if (!this._assetsToLoad) {
+            this._assetsToLoad = {};
+        }
+        this._assetsToLoad[name] = url;
         return this;
     }
-    
+
     /**
      * Добавить несколько ресурсов
      */
@@ -24,31 +29,28 @@ class AssetLoader {
         }
         return this;
     }
-    
+
     /**
      * Загрузить все ресурсы
+     * В v7 используется PIXI.Assets.load()
+     * Этот метод будет переопределён патчем для встроенных ассетов
      */
-    load() {
-        return new Promise((resolve, reject) => {
-            this.loader
-                .on('progress', (loader, resource) => {
-                    this.loadProgress = loader.progress;
-                    console.log(`Загрузка: ${resource.name} - ${Math.round(loader.progress)}%`);
-                })
-                .on('complete', (loader, resources) => {
-                    // Сохраняем загруженные ресурсы
-                    for (const [name, resource] of Object.entries(resources)) {
-                        this.loadedAssets[name] = resource;
-                    }
-                    console.log('Все ресурсы загружены');
-                    resolve(this.loadedAssets);
-                })
-                .on('error', (error, loader, resource) => {
-                    console.error(`Ошибка загрузки ${resource.name}:`, error);
-                    reject(error);
-                })
-                .load();
-        });
+    async load() {
+        // Если есть ассеты для загрузки, используем PIXI.Assets
+        if (this._assetsToLoad && Object.keys(this._assetsToLoad).length > 0) {
+            try {
+                for (const [name, url] of Object.entries(this._assetsToLoad)) {
+                    console.log(`Загрузка: ${name}`);
+                    const texture = await PIXI.Assets.load(url);
+                    this.loadedAssets[name] = { texture };
+                }
+                console.log('Все ресурсы загружены');
+            } catch (error) {
+                console.error('Ошибка загрузки ресурсов:', error);
+            }
+        }
+        this.loadProgress = 100;
+        return this.loadedAssets;
     }
     
     /**

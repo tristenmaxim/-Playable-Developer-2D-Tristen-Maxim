@@ -278,15 +278,14 @@ function injectAssets(assetsMap) {
         }
         
         // Маппинг имен файлов на алиасы
+        // Примечание: enemy-spritesheet.png, collectible-spritesheet.png, particle.png
+        // не включены, так как игра использует дефолтные графические примитивы
         const assetMapping = {
             'player-spritesheet.png': 'player',
             'player-large.png': 'playerLarge',
             'background-layer1.webp': 'background1',
             'background-layer2.webp': 'background2',
             'background-layer3.webp': 'background3',
-            'enemy-spritesheet.png': 'enemy',
-            'collectible-spritesheet.png': 'collectible',
-            'particle.png': 'particle',
             'jump.mp3': 'jumpSound',
             'collect.mp3': 'collectSound',
             'collision.mp3': 'collisionSound',
@@ -322,11 +321,12 @@ function injectAssets(assetsMap) {
                     const img = new Image();
                     img.onload = () => {
                         try {
-                            const baseTexture = new PIXI.BaseTexture(img);
-                            const texture = new PIXI.Texture(baseTexture);
+                            // В PixiJS v7 используем PIXI.Texture.from() напрямую
+                            // Это более надежный способ для работы с Image элементами
+                            const texture = PIXI.Texture.from(img);
                             // Сохраняем как объект с полем texture для совместимости с getTexture()
                             this.loadedAssets[alias] = { texture: texture };
-                            console.log(\`[AssetLoader] ✓ Загружена текстура: \${alias}\`);
+                            console.log(\`[AssetLoader] ✓ Загружена текстура: \${alias} (\${texture.width}x\${texture.height})\`);
                             resolve(texture);
                         } catch (error) {
                             console.error(\`[AssetLoader] ✗ Ошибка создания текстуры \${alias}:\`, error);
@@ -339,6 +339,7 @@ function injectAssets(assetsMap) {
                         this.loadedAssets[alias] = { texture: PIXI.Texture.EMPTY };
                         resolve(PIXI.Texture.EMPTY);
                     };
+                    img.crossOrigin = 'anonymous'; // Для работы с data URI
                     img.src = dataURI;
                 });
                 
@@ -420,36 +421,17 @@ async function buildHTML() {
     // Создаем финальный HTML
     let finalHTML = template;
     
-    // Извлекаем URL PixiJS перед удалением script тегов
+    // Извлекаем URL PixiJS - НЕ встраиваем inline из-за проблем с template literals
+    // Оставляем внешнюю ссылку на CDN (для playable ads можно заменить на встроенную версию позже)
     const pixiMatch = template.match(/<script[^>]*src=["']([^"']*pixi[^"']*)["'][^>]*><\/script>/i);
     let pixiScript = '';
-    
+
     if (pixiMatch) {
         const pixiUrl = pixiMatch[1];
         console.log(`Найден PixiJS: ${pixiUrl}`);
-        // Загружаем PixiJS и встраиваем его
-        try {
-            const https = require('https');
-            const http = require('http');
-            const url = require('url');
-            
-            const pixiContent = await new Promise((resolve, reject) => {
-                const parsedUrl = url.parse(pixiUrl);
-                const client = parsedUrl.protocol === 'https:' ? https : http;
-                
-                client.get(pixiUrl, (res) => {
-                    let data = '';
-                    res.on('data', (chunk) => { data += chunk; });
-                    res.on('end', () => resolve(data));
-                }).on('error', reject);
-            });
-            
-            pixiScript = `<script>\n${pixiContent}\n</script>`;
-            console.log('PixiJS встроен в файл');
-        } catch (error) {
-            console.warn(`Не удалось встроить PixiJS, оставляем ссылку: ${error.message}`);
-            pixiScript = `<script src="${pixiMatch[0].match(/src=["']([^"']+)["']/)[1]}"></script>`;
-        }
+        // Оставляем ссылку на CDN - встраивание вызывает проблемы с template literals в минифицированном коде
+        pixiScript = `<script src="${pixiUrl}"></script>`;
+        console.log('PixiJS: оставлена внешняя ссылка (CDN)');
     } else {
         console.warn('PixiJS не найден в шаблоне!');
     }
