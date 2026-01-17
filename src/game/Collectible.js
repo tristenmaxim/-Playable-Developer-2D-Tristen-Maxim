@@ -2,7 +2,9 @@
 
 class Collectible extends PIXI.Sprite {
     constructor(texture) {
-        super(texture || this.createDefaultTexture());
+        // Создаем дефолтную текстуру ДО вызова super()
+        const defaultTexture = texture || Collectible.createDefaultTexture();
+        super(defaultTexture);
         
         this.speed = CONFIG.SPEED.COLLECTIBLE;
         this.isActive = true;
@@ -22,8 +24,9 @@ class Collectible extends PIXI.Sprite {
     
     /**
      * Создание дефолтной текстуры (желтый круг)
+     * Статический метод, чтобы можно было вызвать до super()
      */
-    createDefaultTexture() {
+    static createDefaultTexture() {
         const graphics = new PIXI.Graphics();
         graphics.beginFill(0xffd700);
         graphics.drawCircle(0, 0, 20);

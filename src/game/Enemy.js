@@ -2,7 +2,9 @@
 
 class Enemy extends PIXI.Sprite {
     constructor(texture) {
-        super(texture || this.createDefaultTexture());
+        // Создаем дефолтную текстуру ДО вызова super()
+        const defaultTexture = texture || Enemy.createDefaultTexture();
+        super(defaultTexture);
         
         this.speed = CONFIG.SPEED.ENEMY;
         this.isActive = true;
@@ -17,8 +19,9 @@ class Enemy extends PIXI.Sprite {
     
     /**
      * Создание дефолтной текстуры (красный прямоугольник)
+     * Статический метод, чтобы можно было вызвать до super()
      */
-    createDefaultTexture() {
+    static createDefaultTexture() {
         const graphics = new PIXI.Graphics();
         graphics.beginFill(0xff0000);
         graphics.drawRect(0, 0, 40, 60);

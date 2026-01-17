@@ -1191,7 +1191,9 @@ class Background extends PIXI.Container {
 
 class Enemy extends PIXI.Sprite {
     constructor(texture) {
-        super(texture || this.createDefaultTexture());
+        // Создаем дефолтную текстуру ДО вызова super()
+        const defaultTexture = texture || Enemy.createDefaultTexture();
+        super(defaultTexture);
         
         this.speed = CONFIG.SPEED.ENEMY;
         this.isActive = true;
@@ -1206,8 +1208,9 @@ class Enemy extends PIXI.Sprite {
     
     /**
      * Создание дефолтной текстуры (красный прямоугольник)
+     * Статический метод, чтобы можно было вызвать до super()
      */
-    createDefaultTexture() {
+    static createDefaultTexture() {
         const graphics = new PIXI.Graphics();
         graphics.beginFill(0xff0000);
         graphics.drawRect(0, 0, 40, 60);
@@ -1267,7 +1270,9 @@ class Enemy extends PIXI.Sprite {
 
 class Collectible extends PIXI.Sprite {
     constructor(texture) {
-        super(texture || this.createDefaultTexture());
+        // Создаем дефолтную текстуру ДО вызова super()
+        const defaultTexture = texture || Collectible.createDefaultTexture();
+        super(defaultTexture);
         
         this.speed = CONFIG.SPEED.COLLECTIBLE;
         this.isActive = true;
@@ -1287,8 +1292,9 @@ class Collectible extends PIXI.Sprite {
     
     /**
      * Создание дефолтной текстуры (желтый круг)
+     * Статический метод, чтобы можно было вызвать до super()
      */
-    createDefaultTexture() {
+    static createDefaultTexture() {
         const graphics = new PIXI.Graphics();
         graphics.beginFill(0xffd700);
         graphics.drawCircle(0, 0, 20);
