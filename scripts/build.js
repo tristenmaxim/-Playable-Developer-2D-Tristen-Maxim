@@ -228,13 +228,18 @@ function createAssetsMap() {
 function injectAssets(assetsMap) {
     // Создаем объект с data URI ассетами
     let assetsCode = '\n// === Встроенные ассеты ===\n';
-    assetsCode += '(function() {\n';
     assetsCode += 'const EMBEDDED_ASSETS = {\n';
     
     Object.keys(assetsMap).forEach((key, index, array) => {
         const isLast = index === array.length - 1;
-        // Экранируем кавычки в data URI
-        const escapedDataURI = assetsMap[key].replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        // Экранируем специальные символы в data URI для безопасной вставки в JavaScript строку
+        const escapedDataURI = assetsMap[key]
+            .replace(/\\/g, '\\\\')  // Экранируем обратные слеши
+            .replace(/"/g, '\\"')     // Экранируем двойные кавычки
+            .replace(/'/g, "\\'")     // Экранируем одинарные кавычки
+            .replace(/\n/g, '\\n')    // Экранируем переносы строк
+            .replace(/\r/g, '\\r')   // Экранируем возврат каретки
+            .replace(/\t/g, '\\t');   // Экранируем табуляции
         assetsCode += `  "${key}": "${escapedDataURI}"${isLast ? '' : ','}\n`;
     });
     
@@ -246,11 +251,13 @@ function injectAssets(assetsMap) {
 (function() {
     if (typeof EMBEDDED_ASSETS === 'undefined') {
         console.warn('EMBEDDED_ASSETS не найдены, используется стандартная загрузка');
-        return; // Встроенные ассеты не найдены
+        return;
     }
     
-    // Сохраняем оригинальный метод load
-    const originalLoad = AssetLoader.prototype.load;
+    if (typeof AssetLoader === 'undefined') {
+        console.warn('AssetLoader класс не найден, патч не будет применен.');
+        return;
+    }
     
     // Переопределяем метод load
     AssetLoader.prototype.load = async function() {
@@ -291,10 +298,10 @@ function injectAssets(assetsMap) {
             const mimeType = mimeMatch[1];
             
             if (mimeType.startsWith('image/')) {
-                // Создаем текстуру из data URI
+                // Создаем текстуру из data URI используя BaseTexture для надежности
                 try {
-                    // Используем PIXI.Texture.from() - он должен работать с data URI
-                    const texture = PIXI.Texture.from(dataURI);
+                    const baseTexture = PIXI.BaseTexture.from(dataURI);
+                    const texture = new PIXI.Texture(baseTexture);
                     // Сохраняем как объект с полем texture для совместимости с getTexture()
                     this.loadedAssets[alias] = { texture: texture };
                     console.log(\`✓ Загружена текстура: \${alias}\`);
@@ -310,9 +317,9 @@ function injectAssets(assetsMap) {
                     // Предзагружаем аудио
                     audio.preload = 'auto';
                     this.loadedAssets[alias] = audio;
-                    console.log(\`Загружен звук: \${alias}\`);
+                    console.log(\`✓ Загружен звук: \${alias}\`);
                 } catch (error) {
-                    console.error(\`Ошибка загрузки звука \${alias}:\`, error);
+                    console.error(\`✗ Ошибка загрузки звука \${alias}:\`, error);
                 }
             }
         });
@@ -331,7 +338,6 @@ function injectAssets(assetsMap) {
         return this.loadedAssets;
     };
 })();
-})(); // Закрываем IIFE для EMBEDDED_ASSETS
 `;
     
     return assetsCode + assetLoaderPatch;
