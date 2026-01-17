@@ -4605,19 +4605,33 @@ const EMBEDDED_ASSETS = {
 
 // Патч для AssetLoader - использование встроенных ассетов
 (function() {
+    console.log('[AssetLoader Patch] Начало применения патча...');
+    
     if (typeof EMBEDDED_ASSETS === 'undefined') {
-        console.warn('EMBEDDED_ASSETS не найдены, используется стандартная загрузка');
+        console.error('[AssetLoader Patch] EMBEDDED_ASSETS не найдены!');
         return;
     }
     
     if (typeof AssetLoader === 'undefined') {
-        console.warn('AssetLoader класс не найден, патч не будет применен.');
+        console.error('[AssetLoader Patch] AssetLoader класс не найден!');
         return;
     }
     
+    if (typeof PIXI === 'undefined') {
+        console.error('[AssetLoader Patch] PIXI не найден!');
+        return;
+    }
+    
+    console.log('[AssetLoader Patch] Все проверки пройдены, применяю патч...');
+    
     // Переопределяем метод load
     AssetLoader.prototype.load = async function() {
-        console.log('Загрузка встроенных ассетов...');
+        console.log('[AssetLoader] Загрузка встроенных ассетов...');
+        
+        // Убеждаемся, что loadedAssets инициализирован
+        if (!this.loadedAssets) {
+            this.loadedAssets = {};
+        }
         
         // Маппинг имен файлов на алиасы
         const assetMapping = {
@@ -4635,7 +4649,9 @@ const EMBEDDED_ASSETS = {
             'music.mp3': 'music'
         };
         
-        // Загружаем все ассеты
+        // Загружаем все ассеты (используем Promise.all для параллельной загрузки)
+        const loadPromises = [];
+        
         Object.keys(assetMapping).forEach(fileName => {
             const alias = assetMapping[fileName];
             const dataURI = EMBEDDED_ASSETS[fileName];
@@ -4654,18 +4670,39 @@ const EMBEDDED_ASSETS = {
             const mimeType = mimeMatch[1];
             
             if (mimeType.startsWith('image/')) {
-                // Создаем текстуру из data URI используя BaseTexture для надежности
-                try {
-                    const baseTexture = PIXI.BaseTexture.from(dataURI);
-                    const texture = new PIXI.Texture(baseTexture);
-                    // Сохраняем как объект с полем texture для совместимости с getTexture()
-                    this.loadedAssets[alias] = { texture: texture };
-                    console.log(`✓ Загружена текстура: ${alias}`);
-                } catch (error) {
-                    console.error(`✗ Ошибка загрузки текстуры ${alias}:`, error);
-                    // Создаем пустую текстуру как fallback
-                    this.loadedAssets[alias] = { texture: PIXI.Texture.EMPTY };
+                // Создаем текстуру из data URI
+                console.log(`[AssetLoader] Загрузка текстуры ${alias} из data URI...`);
+                
+                // Используем Promise для загрузки изображения (так как это асинхронная операция)
+                const loadPromise = new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        try {
+                            const baseTexture = new PIXI.BaseTexture(img);
+                            const texture = new PIXI.Texture(baseTexture);
+                            // Сохраняем как объект с полем texture для совместимости с getTexture()
+                            this.loadedAssets[alias] = { texture: texture };
+                            console.log(`[AssetLoader] ✓ Загружена текстура: ${alias}`);
+                            resolve(texture);
+                        } catch (error) {
+                            console.error(`[AssetLoader] ✗ Ошибка создания текстуры ${alias}:`, error);
+                            this.loadedAssets[alias] = { texture: PIXI.Texture.EMPTY };
+                            resolve(PIXI.Texture.EMPTY);
+                        }
+                    };
+                    img.onerror = (error) => {
+                        console.error(`[AssetLoader] ✗ Ошибка загрузки изображения ${alias}:`, error);
+                        this.loadedAssets[alias] = { texture: PIXI.Texture.EMPTY };
+                        resolve(PIXI.Texture.EMPTY);
+                    };
+                    img.src = dataURI;
+                });
+                
+                // Сохраняем промис для ожидания загрузки
+                if (!this._texturePromises) {
+                    this._texturePromises = [];
                 }
+                this._texturePromises.push(loadPromise);
             } else if (mimeType.startsWith('audio/')) {
                 // Для аудио создаем Audio объект
                 try {
@@ -4680,7 +4717,14 @@ const EMBEDDED_ASSETS = {
             }
         });
         
-        console.log('Все встроенные ассеты загружены');
+        // Ждем загрузки всех текстур
+        if (this._texturePromises && this._texturePromises.length > 0) {
+            await Promise.all(this._texturePromises);
+            this._texturePromises = [];
+        }
+        
+        console.log('[AssetLoader] Все встроенные ассеты загружены');
+        console.log('[AssetLoader] Загружено ассетов:', Object.keys(this.loadedAssets).length);
         
         // Скрываем экран загрузки
         const loadingScreen = document.getElementById('loading-screen');
@@ -4693,6 +4737,8 @@ const EMBEDDED_ASSETS = {
         
         return this.loadedAssets;
     };
+    
+    console.log('[AssetLoader Patch] Патч успешно применен!');
 })();
 
 </script>
